@@ -1,0 +1,67 @@
+trigger:
+  branches:
+    include:
+      - main
+
+variables:
+  containerRegistry: '<your-container-registry-name>'  # Here we need to replace with Azure Container Registry name
+  imageName: 'react-native-notes-app'
+
+stages:
+  - stage: BuildAndPushDockerImage
+    displayName: Build and Push Docker Image
+    jobs:
+      - job: BuildAndPush
+        displayName: Build and Push Docker Image to ACR
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          # Checkout the code
+          - task: Checkout@1
+            displayName: Checkout Code
+
+          # Login to Azure Container Registry
+          - task: Docker@2
+            displayName: Login to Azure Container Registry
+            inputs:
+              command: 'login'
+              containerRegistry: '<your-azure-container-registry-service-connection>'
+
+          # Build and Push Docker Image
+          - task: Docker@2
+            displayName: Build and Push Docker Image
+            inputs:
+              command: 'buildAndPush'
+              containerRegistry: '<your-azure-container-registry-service-connection>'
+              repository: '$(containerRegistry)/$(imageName)'
+              Dockerfile: '**/docker'
+              tags: |
+                latest
+
+  - stage: Deploy
+    displayName: Deploy Docker Image to Azure VM
+    dependsOn: BuildAndPushDockerImage
+    jobs:
+      - job: DeployToVM
+        displayName: Deploy to Azure VM
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          # Install SSH Key for VM Access
+          - task: InstallSSHKey@0
+            displayName: Install SSH Key
+            inputs:
+              sshPublicKey: '<path-to-ssh-public-key>'
+              sshPrivateKey: '<path-to-ssh-private-key>'
+              hostName: '<azure-vm-public-ip>'
+              userName: 'azureuser'
+
+          # Pull and Run Docker Image on Azure VM
+          - script: |
+              ssh -o StrictHostKeyChecking=no azureuser@<azure-vm-public-ip> <<EOF
+              sudo docker pull $(containerRegistry)/$(imageName):latest
+              sudo docker stop react-native-notes-app || true
+              sudo docker rm react-native-notes-app || true
+              sudo docker run -d --name react-native-notes-app -p 3000:3000 $(containerRegistry)/$(imageName):latest
+              EOF
+            displayName: Deploy Docker Image to Azure VM
