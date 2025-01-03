@@ -3,6 +3,13 @@
 This repository automates the deployment of a React Native Notes app to an Azure VM using CI/CD pipelines, Terraform for infrastructure provisioning, and GitOps workflows.
 
 ---
+Project Structure:
+.
+├── azure-pipelines.yml       # Azure DevOps pipeline configuration
+├── Dockerfile                # Dockerfile to containerize the app
+├── main.tf                   # Terraform configuration for Azure infrastructure
+├── terraform.tfvars          # Terraform variables (excluded from version control)
+├── README.md                 # Project documentation
 
 ## Prerequisites
 
